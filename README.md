@@ -1,6 +1,15 @@
 # SelfORE: Self-supervised Relational Feature Learning for Open Relation Extraction
 The source code of paper "SelfORE: Self-supervised Relational Feature Learning for Open Relation Extraction"
 
-**Waiting for refactoring**
+**This is unrefactored version.** 
 
-If you are very urgent, please check the unrefactored version in branch `unrefactored`. The refactored code will be released after the tedious graduation design.
+We use `pytorch-pretrained-bert 0.6.2` for pretrained BERT model and will migrate from `pytorch-pretrained-bert` to `transformers` in the future.
+
+Dataset:
+* [NYT-FB](https://github.com/diegma/relation-autoencoder/blob/master/data-sample.txt)
+* [TRex](https://hadyelsahar.github.io/t-rex/)
+
+Run:
+```sh
+python bert-base.py NUM_LABELS
+```

@@ -1,0 +1,13 @@
+/home/xuminghu/venv/bin/python bert-base.py 10
+/home/xuminghu/venv/bin/python bert-base.py 20
+/home/xuminghu/venv/bin/python bert-base.py 30
+/home/xuminghu/venv/bin/python bert-base.py 40
+/home/xuminghu/venv/bin/python bert-base.py 50
+#/home/xuminghu/venv/bin/python bert-base.py 75
+#/home/xuminghu/venv/bin/python bert-base.py 100
+#/home/xuminghu/venv/bin/python bert-base.py 300
+#/home/xuminghu/venv/bin/python bert-base.py 500
+#/home/xuminghu/venv/bin/python bert-base.py 700
+#/home/xuminghu/venv/bin/python bert-base.py 900
+#/home/xuminghu/venv/bin/python bert-base.py 1100
+#/home/xuminghu/venv/bin/python bert-base.py 1300
