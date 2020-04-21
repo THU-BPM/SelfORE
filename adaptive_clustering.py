@@ -30,7 +30,7 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 vec_len = 1536 # Bert input
 cluster_num = None
 # cluster_num = int(sys.argv[1])
-print("=======DEC cluster num=====")
+print("=======AC cluster num=====")
 # print(cluster_num)
 feature_num = 200
 BATCH_SIZE = 16
@@ -94,9 +94,9 @@ class ClusteringLayer(nn.Module):
         t_dist = (numerator.t() / torch.sum(numerator, 1)).t() #soft assignment using t-distribution
         return t_dist
 
-class DEC(nn.Module):
+class AdaptiveClustering(nn.Module):
     def __init__(self, n_clusters=cluster_num, autoencoder=None, hidden=10, cluster_centers=None, alpha=1.0):
-        super(DEC, self).__init__()
+        super(AdaptiveClustering, self).__init__()
         self.n_clusters = n_clusters
         self.alpha = alpha
         self.hidden = hidden
@@ -205,13 +205,9 @@ def train(**kwargs):
     kmeans = KMeans(n_clusters=cluster_num, random_state=0).fit(features)
     cluster_centers = kmeans.cluster_centers_
     cluster_centers = torch.tensor(cluster_centers, dtype=torch.float).cuda()
-    # center_index = [7, 25, 1, 4, 0, 2, 24, 76, 6, 31]
-    # cluster_centers = [features[idx] for idx in center_index]
-    # cluster_centers = torch.stack(cluster_centers).cuda()
 
     model.module.clusteringlayer.cluster_centers = torch.nn.Parameter(cluster_centers)
     print("End KMeans")
-    # torch.cuda.empty_cache()
     # =========================================================
     # y_pred = kmeans.predict(features)
     # accuracy = acc(y.cpu().numpy(), y_pred)
@@ -232,10 +228,6 @@ def train(**kwargs):
         target = model.module.target_distribution(output).detach()
         out = output.argmax(1)
         
-        #out = output.argmax(1)
-        # if epoch % 20 == 0:
-        #     print('plotting')
-        #     dec.visualize(epoch, img)
         loss = loss_function(output.log(), target) / output.shape[0]
 
         optimizer.zero_grad()
@@ -252,19 +244,11 @@ def train(**kwargs):
         if state < checkpoint['best']:
             checkpoint['best'] = state
             is_best = True
-            print("Epoch {} now is best DEC, saved".format(epoch))
+            print("Epoch {} now is best AC, saved".format(epoch))
             import pickle
-            
-            # import ipdb; ipdb.set_trace() 
-
-            # kmeans_output = KMeans(n_clusters=100, random_state=0).fit(output.detach().numpy())
-            # with open('DEC_out_100', 'wb') as fp:
-            # with open('DEC_out_'+str(cluster_num), 'wb') as fp:
-            #     out_save = kmeans_output.labels_.tolist()
-            #     pickle.dump(out_save, fp)
     
   
-            with open('DEC_out_'+str(cluster_num), 'wb') as fp:
+            with open('AC_out_'+str(cluster_num), 'wb') as fp:
                pickle.dump(out.tolist(), fp)
 
         save_checkpoint({
@@ -340,7 +324,7 @@ if __name__ == '__main__':
     ae_save_path = 'saves/sim_autoencoder.pth'
 
     import subprocess
-    cmd = "rm saves/sim_autoencoder.pth saves/dec.pth"
+    cmd = "rm saves/sim_autoencoder.pth saves/ac.pth"
     subprocess.getstatusoutput(cmd)
 
 
@@ -357,25 +341,16 @@ if __name__ == '__main__':
     pretrain(data=x, model=autoencoder, num_epochs=epochs_pre, savepath=ae_save_path, checkpoint=checkpoint)
 
 
-    dec_save_path='saves/dec.pth'
-    dec = DEC(n_clusters=cluster_num, autoencoder=autoencoder, hidden=10, cluster_centers=None, alpha=1.0)
-    #torch.distributed.init_process_group(backend="nccl")
+    ac_save_path= 'saves/ac.pth'
+    adaptive_clustering = AdaptiveClustering(n_clusters=cluster_num, autoencoder=autoencoder, hidden=10, cluster_centers=None, alpha=1.0)
     if torch.cuda.device_count() > 1:
         print("Let's use", torch.cuda.device_count(), "GPUs!")
-        #dec = torch.nn.parallel.DistributedDataParallel(dec)
-        # dec = DataParallelModel(dec)
-        dec = nn.DataParallel(dec)
-    dec.to(device)
+        adaptive_clustering = nn.DataParallel(adaptive_clustering)
+    adaptive_clustering.to(device)
 
-
-    # if os.path.isfile(dec_save_path):
-    #     print('Loading {}'.format(dec_save_path))
-    #     checkpoint = torch.load(dec_save_path)
-    #     dec.load_state_dict(checkpoint['state_dict'])
-    # else:
-    print("=> no checkpoint found at '{}'".format(dec_save_path))
+    print("=> no checkpoint found at '{}'".format(ac_save_path))
     checkpoint = {
         "epoch": 0,
         "best": float("inf")
     }
-    train(data=x, labels=y, model=dec, num_epochs=args.train_epochs, savepath=dec_save_path, checkpoint=checkpoint)
+    train(data=x, labels=y, model=adaptive_clustering, num_epochs=args.train_epochs, savepath=ac_save_path, checkpoint=checkpoint)

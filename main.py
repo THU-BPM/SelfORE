@@ -124,18 +124,17 @@ for loop in range(5):
             pickle.dump(marker_temper_data, fp) 
 
 
-        print("==== Dec Start ====")
+        print("==== Adaptive Clustering Start ====")
         import subprocess
-        # py_name = "dec-" + str(NUM_LABELS) + ".py"
-        py_name = "dec-base.py"
+        py_name = "adaptive_clustering.py"
         cmd = "python " + py_name + " --cluster_num " + str(NUM_LABELS)# 
         _, out = subprocess.getstatusoutput(cmd)
         print(out)
 
-        with open ('DEC_out_'+str(NUM_LABELS), 'rb') as fp:
+        with open ('AC_out_'+str(NUM_LABELS), 'rb') as fp:
             pred_flat_2 = pickle.load(fp)
 
-        print("==== Dec Finished ====")
+        print("==== Adaptive Clustering Finished ====")
         print("Pred_flat_2 length: {}, sample: {}".format(len(pred_flat_2), pred_flat_2[:10]))
         # import ipdb; ipdb.set_trace()
 
