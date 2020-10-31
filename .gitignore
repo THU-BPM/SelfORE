@@ -1,5 +1,4 @@
 .vscode
-data/sentence
 *.ipynb
 
 # Byte-compiled / optimized / DLL files
