@@ -8,6 +8,14 @@ class SelfORE:
     def __init__(self, config):
         self.k = config['k']
         self.loop_num = config['loop']
+        cluster = config['cluster']
+        if cluster == 'kmeans':
+            self.pseudo_model = KMeans(n_clusters=self.k, random_state=0)
+        elif cluster == 'adpative_clustering':
+            self.pseudo_model = AdaptiveClustering(n_clusters=self.k, input_dim=config['bert_max_len']*768)
+        else:
+            raise Exception(f'Clustering algorithm {cluster} not support yet')
+
         self.classifier = Classifier(
             k=self.k,
             sentence_path=config['sentence_path'],
@@ -16,21 +24,10 @@ class SelfORE:
             epoch=config['epoch']
         )
 
-        cluster = config['cluster']
-        if cluster == 'kmeans':
-            self.pseudo_model = KMeans(n_clusters=self.k, random_state=0)
-        elif cluster == 'adpative_clustering':
-            self.pseudo_model = AdaptiveClustering(n_clusters=self.k)
-        else:
-            raise Exception(f'Clustering algorithm {cluster} not support yet')
-
-    def loop(self, first=False):
+    def loop(self):
         print("=== Generating Pseudo Labels...")
-        if first:
-            input_ids = self.classifier.input_ids.cpu().detach().numpy()
-            pseudo_labels = self.pseudo_model.fit(input_ids).labels_
-        else:
-            pseudo_labels = self.pseudo_model.fit(self.classifier.input_emb).labels_
+        bert_embs = self.classifier.get_hidden_state()
+        pseudo_labels = self.pseudo_model.fit(bert_embs).labels_
         print("=== Generating Pseudo Labels Done")
 
         print("=== Training Classifier Model...")
@@ -39,7 +36,5 @@ class SelfORE:
 
     def start(self):
         print("starting ...")
-        first = True
         for _ in tqdm(range(self.loop_num)):
-            self.loop(first)
-            first = False
+            self.loop()

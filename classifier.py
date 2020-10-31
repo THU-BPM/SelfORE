@@ -47,7 +47,6 @@ class Classifier:
             output_hidden_states=True,
         )
         model.resize_token_embeddings(len(self.tokenizer))
-        model.cuda()
         return model
 
     def prepare_data(self):
@@ -82,6 +81,11 @@ class Classifier:
         entity_idx = torch.Tensor(entity_idx)
         return entity_idx
 
+    def get_hidden_state(self):
+        self.model.to('cpu')
+        outputs = self.model(self.input_ids, self.attention_masks)
+        return outputs[1][-1].detach().numpy().flatten().reshape(self.input_ids.shape[0], -1)
+
     def train(self, labels):
         labels = torch.tensor(labels).long()
         dataset = TensorDataset(self.input_ids, self.attention_masks, labels)
@@ -112,13 +116,12 @@ class Classifier:
         np.random.seed(seed_val)
         torch.manual_seed(seed_val)
         torch.cuda.manual_seed_all(seed_val)
-        self.input_emb = None
+        self.model.cuda()
         for epoch_i in range(0, epochs):
-            print(
-                '======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
-            self.train_epoch(last=(epoch_i == epochs-1))
+            print('======== Epoch {:} / {:} ========'.format(epoch_i + 1, epochs))
+            self.train_epoch()
 
-    def train_epoch(self, last=False):
+    def train_epoch(self):
         total_train_loss = 0
         self.model.train()
         for batch in self.train_dataloader:
@@ -126,15 +129,10 @@ class Classifier:
             b_input_mask = batch[1].to(self.device)
             b_labels = batch[2].to(self.device)
             self.model.zero_grad()
-            loss, logits, hidden_states = self.model(b_input_ids,
-                                                     token_type_ids=None,
-                                                     attention_mask=b_input_mask,
-                                                     labels=b_labels)
-            if last:
-                hid_embs = torch.Tensor.cpu(
-                    hidden_states[-1].flatten()).detach().numpy().flatten().reshape(-1, 128*768)
-                self.input_emb = hid_embs if self.input_emb is None else np.concatenate(
-                    (self.input_emb, hid_embs), axis=0)
+            loss, logits, _ = self.model(b_input_ids,
+                                         token_type_ids=None,
+                                         attention_mask=b_input_mask,
+                                         labels=b_labels)
             total_train_loss += loss.item()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
@@ -155,13 +153,10 @@ class Classifier:
             b_input_mask = batch[1].to(self.device)
             b_labels = batch[2].to(self.device)
             with torch.no_grad():
-                (loss, logits, hidden_states) = self.model(b_input_ids,
-                                                           token_type_ids=None,
-                                                           attention_mask=b_input_mask,
-                                                           labels=b_labels)
-            if last:
-                hid_embs = torch.Tensor.cpu(hidden_states[-1].flatten()).detach().numpy().flatten().reshape(-1, 128*768)
-                self.input_emb = np.concatenate((self.input_emb, hid_embs), axis=0)
+                (loss, logits, _) = self.model(b_input_ids,
+                                               token_type_ids=None,
+                                               attention_mask=b_input_mask,
+                                               labels=b_labels)
             total_eval_loss += loss.item()
             logits = logits.detach().cpu().numpy()
             label_ids = b_labels.to('cpu').numpy()

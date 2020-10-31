@@ -1,6 +1,7 @@
 batch_size: 64
 k: 50
-cluster: 'kmeans' # adaptive_clustering
+cluster: 'kmeans'
+# cluster: adpative_clustering
 loop: 5
 epoch: 4
 sentence_path: 'data/sentence'
