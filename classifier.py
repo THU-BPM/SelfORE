@@ -106,7 +106,7 @@ class Classifier:
             sampler=SequentialSampler(val_dataset),
             batch_size=self.batch_size
         )
-        self.optimizer = AdamW(self.model.parameters(), lr=2e-5, eps=1e-8)
+        self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=2e-5, eps=1e-8)
         epochs = self.epoch
         total_steps = len(self.train_dataloader) * epochs
         self.scheduler = get_linear_schedule_with_warmup(
@@ -129,11 +129,12 @@ class Classifier:
             b_input_mask = batch[1].to(self.device)
             b_labels = batch[2].to(self.device)
             self.model.zero_grad()
-            loss, logits, _ = self.model(b_input_ids,
+            result = self.model(b_input_ids,
                                          token_type_ids=None,
                                          attention_mask=b_input_mask,
                                          labels=b_labels)
-            total_train_loss += loss.item()
+            loss, logits = result.loss, result.logits
+            total_train_loss += loss
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.step()
@@ -152,12 +153,15 @@ class Classifier:
             b_input_ids = batch[0].to(self.device)
             b_input_mask = batch[1].to(self.device)
             b_labels = batch[2].to(self.device)
+
             with torch.no_grad():
-                (loss, logits, _) = self.model(b_input_ids,
-                                               token_type_ids=None,
-                                               attention_mask=b_input_mask,
-                                               labels=b_labels)
-            total_eval_loss += loss.item()
+                result = self.model(b_input_ids,
+                                    token_type_ids=None,
+                                    attention_mask=b_input_mask,
+                                    labels=b_labels)
+                
+            loss, logits = result.loss, result.logits
+            total_eval_loss += loss
             logits = logits.detach().cpu().numpy()
             label_ids = b_labels.to('cpu').numpy()
             total_eval_accuracy += self.flat_accuracy(logits, label_ids)
